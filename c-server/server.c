@@ -4,7 +4,6 @@
 #include <netinet/in.h>
 #include "unistd.h"
 
-
 int setup_server(int port) {
     int socket_fd;
     struct sockaddr_in socket_conf;
