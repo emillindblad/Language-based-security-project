@@ -1,65 +1,75 @@
+#include <netinet/in.h>
+#include <sys/types.h>          /* See NOTES */
+#include <sys/socket.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include "unistd.h"
 
+#define PORT 8080
 
-int setup_server(int port) {
-    int socket_fd;
-    struct sockaddr_in socket_conf;
+int server_connect(int port) {
+    int server_fd;
 
-    socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (socket_fd < 0) {
-        perror("Socket failed");
-        exit(EXIT_FAILURE);
+    struct sockaddr_in server_address;
+    socklen_t addr_len = (socklen_t)sizeof(server_address);
+
+    // create new server socket
+    server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (server_fd < 0) {
+        perror("socket failed");
+        exit(0);
     }
-    printf("Socket created\n");
 
-    socket_conf.sin_family = AF_INET;
-    socket_conf.sin_port = htons(port);
-    socket_conf.sin_addr.s_addr = INADDR_ANY;
+    // config socket
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = INADDR_ANY;
+    server_address.sin_port = htons(PORT);
 
-    if (bind(socket_fd, (struct sockaddr *)&socket_conf, (socklen_t)sizeof(socket_conf)) < 0) {
-        perror("Bind failed");
-        exit(EXIT_FAILURE);
+    // bind to socket
+    if (bind(server_fd, (struct sockaddr*)&server_address, addr_len) < 0) {
+        perror("bind failed");
+        exit(0);
     }
-    printf("Bind success\n");
 
-    if (listen(socket_fd, 10) < 0) {
-        perror("Bind failed");
-        exit(EXIT_FAILURE);
+    // listen to incoming connections
+    if (listen(server_fd, 10) < 0) {   // listen to max 10 connections
+        perror("listen failed");
+        exit(0);
     }
-    printf("Listen success\n");
-    printf("Server running on %d\n",port);
 
-    return socket_fd;
+    printf("Server listening to port: %i \n", PORT);
+    return server_fd;
 }
 
-int main() {
-    int port = 3000;
-    int server_fd = setup_server(port);
+int main(int argc, char *argv[]) {
+    int port = PORT;
+    int server_fd = server_connect(port);
 
-    printf("server_fd %d\n",server_fd);
+    while(1) {
+        
+        //client info
+        struct sockaddr_in client_address;
+        socklen_t client_addr_len = sizeof(client_address);
+        int client_fd = accept(server_fd, (struct sockaddr*)&client_address, &client_addr_len);
 
-    while (1) {
-        char buf[256];
-        struct sockaddr_in client_conn;
-        socklen_t client_conn_len = sizeof(client_conn);
-        int client_fd = accept(
-            server_fd,
-            (struct sockaddr *)&client_conn,
-            &client_conn_len);
-
-        if (client_fd < 0) {
-            perror("AAAAAH");
-            exit(EXIT_FAILURE);
+        // accept client connection
+        if ((client_fd < 0)) {
+            perror("accept failed");
+            exit(0);
         }
+        
+        printf("connection established. client: %ls, port: %i\n", client_fd, PORT);
 
-        int valread = read(client_fd, &buf, 256-1);
-        printf("Buf: %s\n", buf);
+        char buf[256];
+        if (read(client_fd, &buf, 256-1)) {
+            perror("connect failed");
+            exit(0);
+        }
         close(client_fd);
+        // create new thread to handle new client 
+        //pthread_t thread_id;
+        //pthread_create(&thread_id, NULL, handle_client, (void *)client_fd);
+        
     }
     return 0;
 }
-
