@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "unistd.h"
 
 #define PORT 8080
 
@@ -58,7 +59,7 @@ int main(int argc, char *argv[]) {
             exit(0);
         }
         
-        printf("connection established. client: %ls, port: %i\n", client_fd, PORT);
+        printf("connection established. client: %d, port: %i\n", client_fd, PORT);
 
         char buf[256];
         if (read(client_fd, &buf, 256-1)) {
