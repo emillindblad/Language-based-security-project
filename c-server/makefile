@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -g -Wall -Wextra
 SRC = server.c
 BUILD_DIR = build
 OUTPUT = $(BUILD_DIR)/server
