@@ -62,8 +62,8 @@ int main(int argc, char *argv[]) {
         printf("connection established. client: %d, port: %i\n", client_fd, PORT);
 
         char buf[256];
-        if (read(client_fd, &buf, 256-1)) {
-            perror("connect failed");
+        if (read(client_fd, &buf, sizeof(buf))) {
+            perror("connect failed\n");
             exit(0);
         }
         close(client_fd);
