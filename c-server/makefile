@@ -1,21 +1,26 @@
 CC = gcc
 CFLAGS = -g -Wall -Wextra
-SRC = server.c
 BUILD_DIR = build
-OUTPUT = $(BUILD_DIR)/server
 
 .PHONY: all clean run build
 
 all: build
 
-build: $(OUTPUT)
+build: $(BUILD_DIR)/server-single $(BUILD_DIR)/server-multi
 
-$(OUTPUT): $(SRC)
+$(BUILD_DIR)/server-single: server-single.c
 	mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
 
-run: $(OUTPUT)
-	./$(OUTPUT)
+$(BUILD_DIR)/server-multi: server-multi.c
+	mkdir -p $(BUILD_DIR)
+	$(CC) $(CFLAGS) -o $@ $^
+
+run-single: $(BUILD_DIR)/server-single
+	./$(BUILD_DIR)/server-single
+
+run-multi: $(BUILD_DIR)/server-multi
+	./$(BUILD_DIR)/server-multi
 
 clean:
 	rm -rf $(BUILD_DIR)

@@ -1,11 +1,11 @@
-#include <asm-generic/socket.h>
 #include <errno.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-#include "unistd.h"
+#include <unistd.h>
 
 int setup_server(int port) {
     int socket_fd;
@@ -29,7 +29,7 @@ int setup_server(int port) {
     socket_conf.sin_port = htons(port);
     socket_conf.sin_addr.s_addr = INADDR_ANY;
 
-    if (bind(socket_fd, (struct sockaddr *)&socket_conf, (socklen_t)sizeof(socket_conf)) < 0) {
+    if (bind(socket_fd, (struct sockaddr*)&socket_conf, (socklen_t)sizeof(socket_conf)) < 0) {
         perror("Bind failed");
         exit(EXIT_FAILURE);
     }
@@ -46,18 +46,18 @@ int setup_server(int port) {
 }
 
 void create_ok_response(int client_fd) {
-    FILE *fptr = fopen("index.html", "r");
+    FILE* fptr = fopen("index.html", "r");
 
     fseek(fptr, 0, SEEK_END);
     size_t file_size = ftell(fptr);
     rewind(fptr);
 
-    char *body;
-    body = (char *)malloc(file_size);
+    char* body;
+    body = (char*)malloc(file_size);
     fread(body, 1, file_size, fptr);
     fclose(fptr);
 
-    char *header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
+    char* header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
 
     size_t res_size = strlen(header) + file_size + 1; // +1 for NULL terminator?
     // printf("res_size: %d\n", res_size);
@@ -72,22 +72,26 @@ void create_ok_response(int client_fd) {
 }
 
 
-int handle_connection(int client_fd) {
+void* handle_connection(void* arg) {
+    //Type case the generic pointer to an int pointer and dereference the address.
+    int client_fd = *((int*)arg);
+    printf("%d\n",client_fd);
+
     char req_buf[1024];
     if ( recv(client_fd, &req_buf, 1024, NULL) < 0) {
         perror("recv failed");
         exit(EXIT_FAILURE);
     }
-    char *method = strdup(req_buf);
+    char* method = strdup(req_buf);
     method = strtok(method, " ");
-    char *req_path = strtok(NULL, " ");
+    char* req_path = strtok(NULL, " ");
 
     printf("Method: %s\n", method);
     printf("Path: %s\n", req_path);
 
     if (strcmp(method, "GET") != 0 ) {
         // Method not allowed
-        char *res = "HTTP/1.1 405 Method Not Allowed\r\n\r\n";
+        char* res = "HTTP/1.1 405 Method Not Allowed\r\n\r\n";
         send(client_fd, res, strlen(res), 0);
 
     } else if (strcmp(req_path, "/") == 0 || strcmp(req_path, "/index.html") == 0 ) {
@@ -95,11 +99,13 @@ int handle_connection(int client_fd) {
         create_ok_response(client_fd);
     } else {
         //Send 404
-        char *res = "HTTP/1.1 404 Not Found\r\n\r\n";
+        sleep(5);
+        char* res = "HTTP/1.1 404 Not Found\r\n\r\n";
         send(client_fd, res, strlen(res), 0);
     }
 
-    return 0;
+    close(client_fd);
+    pthread_exit(0);
 }
 
 int main() {
@@ -111,17 +117,21 @@ int main() {
         socklen_t client_conn_len = sizeof(client_conn);
         int client_fd = accept(
             server_fd,
-            (struct sockaddr *)&client_conn,
+            (struct sockaddr*)&client_conn,
             &client_conn_len);
 
         if (client_fd < 0) {
             perror("AAAAAH");
             exit(EXIT_FAILURE);
         } else {
-            handle_connection(client_fd);
+            pthread_t thread_id;
+            printf("%lu{}",thread_id);
+            pthread_attr_t attr;
+            pthread_attr_init(&attr);
+
+            pthread_create(&thread_id, &attr, handle_connection, (void*)&client_fd);
         }
 
-        close(client_fd);
     }
     return 0;
 }
