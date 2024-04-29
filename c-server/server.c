@@ -45,7 +45,7 @@ int setup_server(int port) {
     return socket_fd;
 }
 
-void create_ok_response(int client_fd, char req_buf) {
+void create_ok_response(int client_fd) {
     FILE *fptr = fopen("index.html", "r");
 
     fseek(fptr, 0, SEEK_END);
@@ -74,7 +74,7 @@ void create_ok_response(int client_fd, char req_buf) {
 
 int handle_connection(int client_fd) {
     char req_buf[1024];
-    if (recv(client_fd, &req_buf, 1024, NULL) < 0) {
+    if ( recv(client_fd, &req_buf, 1024, NULL) < 0) {
         perror("recv failed");
         exit(EXIT_FAILURE);
     }
@@ -92,7 +92,7 @@ int handle_connection(int client_fd) {
 
     } else if (strcmp(req_path, "/") == 0 || strcmp(req_path, "/index.html") == 0 ) {
         // Send 200 index.html
-        create_ok_response(client_fd, *req_buf);
+        create_ok_response(client_fd);
     } else {
         //Send 404
         char *res = "HTTP/1.1 404 Not Found\r\n\r\n";
@@ -105,8 +105,6 @@ int handle_connection(int client_fd) {
 int main() {
     int port = 3000;
     int server_fd = setup_server(port);
-
-    printf("server_fd %d\n",server_fd);
 
     while (1) {
         struct sockaddr_in client_conn;
