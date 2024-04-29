@@ -1,4 +1,4 @@
-use std::{fs, io::{Read, Write}, net::{TcpListener, TcpStream}};
+use std::{fs, io::{BufRead, BufReader, Write}, net::{TcpListener, TcpStream}};
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:3000").unwrap();    // unwrap to not handle errors
@@ -11,16 +11,33 @@ fn main() {
 }
 
 fn handle_connections(mut stream: TcpStream) {
-    let mut buf = [0; 1024];
-    stream.read(&mut buf).unwrap();
+    let buf_reader = BufReader::new(&mut stream);
+    let request_line = match buf_reader.lines().next() {
+        Some(Ok(line)) => line,
+        Some(Err(e)) => {
+            eprintln!("Error reading line: {}", e);
+            return; 
+        },
+        None => {
+            eprintln!("No lines in buffer");
+            return;
+        }
+    };
+    
+    if request_line == "GET / HTTP/1.1" {
+        let response: &str = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("index.html").unwrap();
+        
+        let length = contents.len();
 
-    let response = "HTTP/1.1 200 OK\r\n\r\n";
-    let contents = fs::read_to_string("index.html").unwrap();
-    let length = contents.len();
+        let response =
+            format!("{response}\r\nContent-Type: text/html\r\nContent-Length: {}\r\n\r\n{}", length, contents);
 
-    let response =
-        format!("{response}\r\nContent-Length: {length}\r\n\r\n{contents}");
-    stream.write(response.as_bytes()).unwrap();
-    stream.flush().unwrap();
+        stream.write(response.as_bytes()).unwrap();
+        stream.flush().unwrap();
+    } else {
+        // other request 
+    }
+    
 
 }
