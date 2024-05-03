@@ -42,16 +42,10 @@ fn handle_connections(mut stream: TcpStream) {
             return;
         }
     };
-
-    //println!("request line {}\n", request_line);
     
     let (status_line, filename) = match &request_line[..] {     // convert request_line to str slice to be able to compare
-        "GET / HTTP/1.1" | "GET /index.html HTTP/1.0" => {
-        println!("normalll");
-        ("HTTP/1.1 200 OK", "index.html")
-        }
+        "GET / HTTP/1.1" | "GET /index.html HTTP/1.0" => ("HTTP/1.1 200 OK", "index.html"),
         "GET /sleep.html HTTP/1.0" => {
-            println!("sleeping");
             sleep(Duration::from_secs(5));
             ("HTTP/1.1 200 OK", "index.html")
         }
