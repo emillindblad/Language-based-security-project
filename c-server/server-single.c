@@ -95,7 +95,7 @@ int handle_connection(int client_fd) {
         create_ok_response(client_fd);
     } else {
         //Send 404
-        sleep(5);
+        sleep(1);
         char *res = "HTTP/1.1 404 Not Found\r\n\r\n";
         send(client_fd, res, strlen(res), 0);
     }
