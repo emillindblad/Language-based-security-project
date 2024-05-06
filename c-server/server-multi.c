@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,7 +20,7 @@ int setup_server(int port) {
     // Avoids "Address in use" error
     int reuse = -1;
     if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
-        printf("SO_REUSEPORT failed: %s \n", strerror(errno));
+        perror("SO_REUSEPORT failed");
         return 1;
     }
 
@@ -62,6 +61,7 @@ void create_ok_response(int client_fd) {
     size_t res_size = strlen(header) + file_size + 1; // +1 for NULL terminator?
     // printf("res_size: %d\n", res_size);
 
+
     char res[res_size];
 
     sprintf(res, "%s%s", header, body);
@@ -75,19 +75,21 @@ void create_ok_response(int client_fd) {
 void* handle_connection(void* arg) {
     //Type case the generic pointer to an int pointer and dereference the address.
     int client_fd = *((int*)arg);
-    printf("%d\n",client_fd);
+    free(arg);
 
     char req_buf[1024];
-    if ( recv(client_fd, &req_buf, 1024, NULL) < 0) {
+    int buf_written = recv(client_fd, &req_buf, 1024, NULL);
+    if (buf_written < 0) {
         perror("recv failed");
         exit(EXIT_FAILURE);
     }
+
     char* method = strdup(req_buf);
     method = strtok(method, " ");
     char* req_path = strtok(NULL, " ");
 
-    printf("Method: %s\n", method);
-    printf("Path: %s\n", req_path);
+    // printf("Method: %s\n", method);
+    // printf("Path: %s\n", req_path);
 
     if (strcmp(method, "GET") != 0 ) {
         // Method not allowed
@@ -99,13 +101,13 @@ void* handle_connection(void* arg) {
         create_ok_response(client_fd);
     } else {
         //Send 404
-        sleep(5);
+        sleep(1);
         char* res = "HTTP/1.1 404 Not Found\r\n\r\n";
         send(client_fd, res, strlen(res), 0);
     }
 
     close(client_fd);
-    pthread_exit(0);
+    pthread_exit(NULL);
 }
 
 int main() {
@@ -119,19 +121,21 @@ int main() {
             server_fd,
             (struct sockaddr*)&client_conn,
             &client_conn_len);
-
         if (client_fd < 0) {
             perror("AAAAAH");
             exit(EXIT_FAILURE);
         } else {
+            int* client_fd_ptr = (int*)malloc(sizeof(int));
             pthread_t thread_id;
-            printf("%lu{}",thread_id);
-            pthread_attr_t attr;
-            pthread_attr_init(&attr);
+            if (client_fd_ptr == NULL) {
+                perror("malloc error");
+                exit(EXIT_FAILURE);
+            }
 
-            pthread_create(&thread_id, &attr, handle_connection, (void*)&client_fd);
+            *client_fd_ptr = client_fd;
+            pthread_create(&thread_id, NULL, handle_connection, client_fd_ptr );
+            // pthread_detach(thread_id);
         }
-
     }
     return 0;
 }
