@@ -1,4 +1,4 @@
-use std::{fs, io::{BufRead, BufReader, Write}, net::{TcpListener, TcpStream}, thread, thread::sleep, time::Duration};
+use std::{fs, io::{BufRead, BufReader, Write}, net::{TcpListener, TcpStream}, thread::sleep, time::Duration};
 use threadpool::ThreadPool;
 
 fn main() {
@@ -21,14 +21,10 @@ fn main() {
             }
         };
         pool.execute(move || handle_connections(stream));
-        println!("Connection established!");
     }
 }
 
 fn handle_connections(mut stream: TcpStream) {
-
-    let thread_id = thread::current().id();
-    println!("Handling connection on thread {:?}", thread_id);
 
     let buf_reader = BufReader::new(&mut stream);
     let request_line = match buf_reader.lines().next() {
