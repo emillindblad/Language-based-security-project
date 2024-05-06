@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra
+CFLAGS = -g -Wall -Wextra
 BUILD_DIR = build
 
 .PHONY: all clean run build
