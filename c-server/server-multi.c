@@ -5,6 +5,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <sys/resource.h>
+#include <semaphore.h>
+
+sem_t mutex;
 
 int setup_server(int port) {
     int socket_fd;
@@ -61,28 +65,32 @@ void create_ok_response(int client_fd) {
     size_t res_size = strlen(header) + file_size + 1; // +1 for NULL terminator?
     // printf("res_size: %d\n", res_size);
 
-
-    char res[res_size];
+    char *res = malloc(res_size);
+    // char res[res_size];
 
     sprintf(res, "%s%s", header, body);
+    free(body);
     // printf("res: \n%s\n",res);
 
     send(client_fd, res, strlen(res), 0);
-    free(body);
+    free(res);
 }
 
 
 void* handle_connection(void* arg) {
     //Type case the generic pointer to an int pointer and dereference the address.
     int client_fd = *((int*)arg);
-    free(arg);
 
     char req_buf[1024];
     int buf_written = recv(client_fd, &req_buf, 1024, NULL);
-    if (buf_written < 0) {
-        perror("recv failed");
-        exit(EXIT_FAILURE);
+    if (buf_written < 1) {
+        printf("Empty request. Closing.\n");
+        free(arg);
+        shutdown(client_fd, SHUT_RDWR);
+        close(client_fd);
+        return 0;
     }
+    // printf("req: %s\n", req_buf);
 
     char* method = strdup(req_buf);
     method = strtok(method, " ");
@@ -98,7 +106,9 @@ void* handle_connection(void* arg) {
 
     } else if (strcmp(req_path, "/") == 0 || strcmp(req_path, "/index.html") == 0 ) {
         // Send 200 index.html
+        sem_wait(&mutex);
         create_ok_response(client_fd);
+        sem_post(&mutex);
     } else {
         //Send 404
         sleep(1);
@@ -106,13 +116,20 @@ void* handle_connection(void* arg) {
         send(client_fd, res, strlen(res), 0);
     }
 
+    free(arg);
+    shutdown(client_fd, SHUT_RDWR);
     close(client_fd);
-    pthread_exit(NULL);
+    return 0;
 }
 
 int main() {
     int port = 3000;
     int server_fd = setup_server(port);
+
+    sem_init(&mutex, 0, 1); // Inıtialize the mutex from 1.
+
+    // setrlimit(RLIMIT_NPROC, 5);
+    // RLIMIT_NPROC
 
     while (1) {
         struct sockaddr_in client_conn;
@@ -128,13 +145,14 @@ int main() {
             int* client_fd_ptr = (int*)malloc(sizeof(int));
             pthread_t thread_id;
             if (client_fd_ptr == NULL) {
+
                 perror("malloc error");
                 exit(EXIT_FAILURE);
             }
 
             *client_fd_ptr = client_fd;
-            pthread_create(&thread_id, NULL, handle_connection, client_fd_ptr );
-            // pthread_detach(thread_id);
+            pthread_create(&thread_id, NULL, handle_connection, client_fd_ptr);
+            pthread_detach(thread_id);
         }
     }
     return 0;
