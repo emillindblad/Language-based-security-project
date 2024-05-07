@@ -2,10 +2,9 @@ use std::{
     fs,
     io::{BufRead, BufReader, Write},
     net::{TcpListener, TcpStream},
-    thread::sleep,
+    thread::sleep, thread,
     time::Duration,
 };
-use threadpool::ThreadPool;
 
 fn main() {
     let port = "3000";
@@ -17,7 +16,7 @@ fn main() {
     };
     println!("Sever running on {port}");
 
-    let pool = ThreadPool::new(5);
+    //let pool = ThreadPool::new(5);
 
     for stream in listener.incoming() {
         let stream = match stream {
@@ -26,11 +25,12 @@ fn main() {
                 panic!("Error creating stream");
             }
         };
-        pool.execute(move || handle_connections(stream));
+        thread::spawn(move || handle_connections(stream));
     }
 }
 
 fn handle_connections(mut stream: TcpStream) {
+
     let buf_reader = BufReader::new(&mut stream);
     let request_line = match buf_reader.lines().next() {
         Some(Ok(line)) => line,
@@ -46,8 +46,21 @@ fn handle_connections(mut stream: TcpStream) {
 
     let mut splited = request_line.split(' ');
 
-    let method = splited.next().unwrap();
-    let path = splited.next().unwrap();
+    let method = match splited.next() {
+        Some(line) => line,
+        None => {
+            eprintln!("Error with splitting line");
+            return;
+        }
+    };
+
+    let path = match splited.next() {
+        Some(line) => line,
+        None => {
+            eprintln!("Error with splitting line");
+            return;
+        }
+    };
 
     // println!("{method} {path}");
 
