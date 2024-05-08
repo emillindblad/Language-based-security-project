@@ -60,20 +60,18 @@ void create_ok_response(int client_fd) {
     fread(body, 1, file_size, fptr);
     fclose(fptr);
 
-    char* header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
+    // char* header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n";
 
-    size_t res_size = strlen(header) + file_size + 1; // +1 for NULL terminator?
-    // printf("res_size: %d\n", res_size);
+    // size_t res_size = strlen(header) + file_size + 1; // +1 for NULL terminator?
 
-    char *res = malloc(res_size);
-    // char res[res_size];
-
-    sprintf(res, "%s%s", header, body);
-    free(body);
-    // printf("res: \n%s\n",res);
-
+    char res[1024];
+    sprintf(res,
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: %d\r\n\r\n%s", file_size, body);
     send(client_fd, res, strlen(res), 0);
-    free(res);
+
+    free(body);
+
+    // send(client_fd, res, strlen(res), 0);
 }
 
 
@@ -82,9 +80,9 @@ void* handle_connection(void* arg) {
     int client_fd = *((int*)arg);
 
     char req_buf[1024];
-    int buf_written = recv(client_fd, &req_buf, 1024, NULL);
+    int buf_written = recv(client_fd, &req_buf, 1024, 0);
     if (buf_written < 1) {
-        printf("Empty request. Closing.\n");
+        // printf("Empty request. Closing.\n");
         free(arg);
         shutdown(client_fd, SHUT_RDWR);
         close(client_fd);
@@ -123,7 +121,7 @@ void* handle_connection(void* arg) {
 }
 
 int main() {
-    int port = 3000;
+    int port = 3001;
     int server_fd = setup_server(port);
 
     sem_init(&mutex, 0, 1); // Inıtialize the mutex from 1.
