@@ -2,7 +2,8 @@ use std::{
     fs,
     io::{BufRead, BufReader, Write},
     net::{TcpListener, TcpStream},
-    thread::sleep, thread,
+    thread,
+    thread::sleep,
     time::Duration,
 };
 
@@ -30,7 +31,6 @@ fn main() {
 }
 
 fn handle_connections(mut stream: TcpStream) {
-
     let buf_reader = BufReader::new(&mut stream);
     let request_line = match buf_reader.lines().next() {
         Some(Ok(line)) => line,
@@ -75,7 +75,7 @@ fn handle_connections(mut stream: TcpStream) {
         _ => ("HTTP/1.1 404 Not Found", "error.html"),
     };
 
-    let contents = match fs::read_to_string(filename) {
+    let contents = match fs::read_to_string(format!("../html/{filename}")) {
         Ok(line) => line,
         Err(e) => {
             eprintln!("Error reading line: {}", e);
