@@ -46,7 +46,7 @@ int setup_server(int port) {
 }
 
 void create_ok_response(int client_fd) {
-    FILE *fptr = fopen("index.html", "r");
+    FILE *fptr = fopen("../html/index.html", "r");
 
     fseek(fptr, 0, SEEK_END);
     size_t file_size = ftell(fptr);
