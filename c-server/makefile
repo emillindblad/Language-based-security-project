@@ -6,18 +6,11 @@ BUILD_DIR = build
 
 all: build
 
-build: $(BUILD_DIR)/server-single $(BUILD_DIR)/server-multi
-
-$(BUILD_DIR)/server-single: server-single.c
-	mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) -o $@ $^
+build: $(BUILD_DIR)/server-multi
 
 $(BUILD_DIR)/server-multi: server-multi.c
 	mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
-
-run-single: $(BUILD_DIR)/server-single
-	./$(BUILD_DIR)/server-single
 
 run-multi: $(BUILD_DIR)/server-multi
 	./$(BUILD_DIR)/server-multi

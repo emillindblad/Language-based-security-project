@@ -60,23 +60,18 @@ void create_ok_response(int client_fd) {
     fread(body, 1, file_size, fptr);
     fclose(fptr);
 
-    // char* header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n";
-
-    // size_t res_size = strlen(header) + file_size + 1; // +1 for NULL terminator?
-
     char res[1024];
     sprintf(res,
-            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: %d\r\n\r\n%s", file_size, body);
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: %d\r\n\r\n%s",
+            file_size,
+            body);
     send(client_fd, res, strlen(res), 0);
-
     free(body);
-
-    // send(client_fd, res, strlen(res), 0);
 }
 
 
 void* handle_connection(void* arg) {
-    //Type case the generic pointer to an int pointer and dereference the address.
+    //Type cast the generic pointer to an int pointer and dereference the address.
     int client_fd = *((int*)arg);
 
     char req_buf[1024];
@@ -88,7 +83,6 @@ void* handle_connection(void* arg) {
         close(client_fd);
         return 0;
     }
-    // printf("req: %s\n", req_buf);
 
     char* method = strdup(req_buf);
     method = strtok(method, " ");
@@ -103,13 +97,15 @@ void* handle_connection(void* arg) {
         send(client_fd, res, strlen(res), 0);
 
     } else if (strcmp(req_path, "/") == 0 || strcmp(req_path, "/index.html") == 0 ) {
-        // Send 200 index.html
         sem_wait(&mutex);
         create_ok_response(client_fd);
         sem_post(&mutex);
+    } else if (strcmp(req_path, "/sleep")) {
+        // Sleep for testing concurrency.
+        sleep(3);
+        char* res = "HTTP/1.1 200 OK\r\n\r\n";
+        send(client_fd, res, strlen(res), 0);
     } else {
-        //Send 404
-        sleep(1);
         char* res = "HTTP/1.1 404 Not Found\r\n\r\n";
         send(client_fd, res, strlen(res), 0);
     }
@@ -121,13 +117,11 @@ void* handle_connection(void* arg) {
 }
 
 int main() {
-    int port = 3001;
+    int port = 3000;
     int server_fd = setup_server(port);
 
-    sem_init(&mutex, 0, 1); // Inıtialize the mutex from 1.
-
-    // setrlimit(RLIMIT_NPROC, 5);
-    // RLIMIT_NPROC
+    // Initialize the mutex from 1.
+    sem_init(&mutex, 0, 1);
 
     while (1) {
         struct sockaddr_in client_conn;
@@ -137,14 +131,14 @@ int main() {
             (struct sockaddr*)&client_conn,
             &client_conn_len);
         if (client_fd < 0) {
-            perror("AAAAAH");
+            perror("Failed to accept connection");
             exit(EXIT_FAILURE);
         } else {
             int* client_fd_ptr = (int*)malloc(sizeof(int));
             pthread_t thread_id;
             if (client_fd_ptr == NULL) {
 
-                perror("malloc error");
+                perror("Malloc error");
                 exit(EXIT_FAILURE);
             }
 
