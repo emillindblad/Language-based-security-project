@@ -6,14 +6,17 @@ BUILD_DIR = build
 
 all: build
 
-build: $(BUILD_DIR)/server-multi
+build: $(BUILD_DIR)/server
 
-$(BUILD_DIR)/server-multi: server-multi.c
+debug: CFLAGS += -g
+debug: build
+
+$(BUILD_DIR)/server: server.c
 	mkdir -p $(BUILD_DIR)
 	$(CC) $(CFLAGS) -o $@ $^
 
-run-multi: $(BUILD_DIR)/server-multi
-	./$(BUILD_DIR)/server-multi
+run: $(BUILD_DIR)/server
+	./$(BUILD_DIR)/server
 
 clean:
 	rm -rf $(BUILD_DIR)
