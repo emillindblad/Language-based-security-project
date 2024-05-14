@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,6 +5,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <sys/resource.h>
+#include <semaphore.h>
+
+sem_t mutex;
 
 int setup_server(int port) {
     int socket_fd;
@@ -21,7 +24,7 @@ int setup_server(int port) {
     // Avoids "Address in use" error
     int reuse = -1;
     if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) < 0) {
-        printf("SO_REUSEPORT failed: %s \n", strerror(errno));
+        perror("SO_REUSEPORT failed");
         return 1;
     }
 
@@ -57,37 +60,36 @@ void create_ok_response(int client_fd) {
     fread(body, 1, file_size, fptr);
     fclose(fptr);
 
-    char* header = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
-
-    size_t res_size = strlen(header) + file_size + 1; // +1 for NULL terminator?
-    // printf("res_size: %d\n", res_size);
-
-    char res[res_size];
-
-    sprintf(res, "%s%s", header, body);
-    // printf("res: \n%s\n",res);
-
+    char res[1024];
+    sprintf(res,
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: %d\r\n\r\n%s",
+            file_size,
+            body);
     send(client_fd, res, strlen(res), 0);
     free(body);
 }
 
 
 void* handle_connection(void* arg) {
-    //Type case the generic pointer to an int pointer and dereference the address.
+    //Type cast the generic pointer to an int pointer and dereference the address.
     int client_fd = *((int*)arg);
-    printf("%d\n",client_fd);
 
     char req_buf[1024];
-    if ( recv(client_fd, &req_buf, 1024, NULL) < 0) {
-        perror("recv failed");
-        exit(EXIT_FAILURE);
+    int buf_written = recv(client_fd, &req_buf, 1024, 0);
+    if (buf_written < 1) {
+        // printf("Empty request. Closing.\n");
+        free(arg);
+        shutdown(client_fd, SHUT_RDWR);
+        close(client_fd);
+        return 0;
     }
+
     char* method = strdup(req_buf);
     method = strtok(method, " ");
     char* req_path = strtok(NULL, " ");
 
-    printf("Method: %s\n", method);
-    printf("Path: %s\n", req_path);
+    // printf("Method: %s\n", method);
+    // printf("Path: %s\n", req_path);
 
     if (strcmp(method, "GET") != 0 ) {
         // Method not allowed
@@ -95,22 +97,31 @@ void* handle_connection(void* arg) {
         send(client_fd, res, strlen(res), 0);
 
     } else if (strcmp(req_path, "/") == 0 || strcmp(req_path, "/index.html") == 0 ) {
-        // Send 200 index.html
+        sem_wait(&mutex);
         create_ok_response(client_fd);
+        sem_post(&mutex);
+    } else if (strcmp(req_path, "/sleep")) {
+        // Sleep for testing concurrency.
+        sleep(3);
+        char* res = "HTTP/1.1 200 OK\r\n\r\n";
+        send(client_fd, res, strlen(res), 0);
     } else {
-        //Send 404
-        sleep(5);
         char* res = "HTTP/1.1 404 Not Found\r\n\r\n";
         send(client_fd, res, strlen(res), 0);
     }
 
+    free(arg);
+    shutdown(client_fd, SHUT_RDWR);
     close(client_fd);
-    pthread_exit(0);
+    return 0;
 }
 
 int main() {
     int port = 3000;
     int server_fd = setup_server(port);
+
+    // Initialize the mutex from 1.
+    sem_init(&mutex, 0, 1);
 
     while (1) {
         struct sockaddr_in client_conn;
@@ -119,19 +130,22 @@ int main() {
             server_fd,
             (struct sockaddr*)&client_conn,
             &client_conn_len);
-
         if (client_fd < 0) {
-            perror("AAAAAH");
+            perror("Failed to accept connection");
             exit(EXIT_FAILURE);
         } else {
+            int* client_fd_ptr = (int*)malloc(sizeof(int));
             pthread_t thread_id;
-            printf("%lu{}",thread_id);
-            pthread_attr_t attr;
-            pthread_attr_init(&attr);
+            if (client_fd_ptr == NULL) {
 
-            pthread_create(&thread_id, &attr, handle_connection, (void*)&client_fd);
+                perror("Malloc error");
+                exit(EXIT_FAILURE);
+            }
+
+            *client_fd_ptr = client_fd;
+            pthread_create(&thread_id, NULL, handle_connection, client_fd_ptr);
+            pthread_detach(thread_id);
         }
-
     }
     return 0;
 }

@@ -17,8 +17,6 @@ fn main() {
     };
     println!("Sever running on {port}");
 
-    //let pool = ThreadPool::new(5);
-
     for stream in listener.incoming() {
         let stream = match stream {
             Ok(tcp_stream) => tcp_stream,
@@ -49,7 +47,7 @@ fn handle_connections(mut stream: TcpStream) {
     let method = match splited.next() {
         Some(line) => line,
         None => {
-            eprintln!("Error with splitting line");
+            eprintln!("Error getting request method");
             return;
         }
     };
@@ -57,19 +55,16 @@ fn handle_connections(mut stream: TcpStream) {
     let path = match splited.next() {
         Some(line) => line,
         None => {
-            eprintln!("Error with splitting line");
+            eprintln!("Error getting request path");
             return;
         }
     };
 
-    // println!("{method} {path}");
-
     let (status_line, filename) = match (method, path) {
-        // convert request_line to str slice to be able to compare
         ("GET", "/") => ("HTTP/1.1 200 OK", "index.html"),
         ("GET", "/index.html") => ("HTTP/1.1 200 OK", "index.html"),
         ("GET", "/sleep") => {
-            sleep(Duration::from_secs(5));
+            sleep(Duration::from_secs(3));
             ("HTTP/1.1 200 OK", "index.html")
         }
         _ => ("HTTP/1.1 404 Not Found", "error.html"),
